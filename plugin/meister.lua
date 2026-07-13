@@ -9,6 +9,11 @@ vim.keymap.set("x", "<Plug>(meister-annotate)", function()
 	require("meister.annotate").add()
 end, { desc = "Meister: annotate selection" })
 
+vim.keymap.set("n", "<Plug>(meister-annotate)", function()
+	local line = vim.api.nvim_win_get_cursor(0)[1]
+	require("meister.annotate").add({ line, line })
+end, { desc = "Meister: annotate current line" })
+
 vim.keymap.set("n", "<Plug>(meister-send)", function()
 	require("meister.annotate").send()
 end, { desc = "Meister: send annotations" })
