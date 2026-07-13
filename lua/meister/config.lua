@@ -33,7 +33,7 @@ local defaults = {
 		input = {
 			accent_hl = "MeisterInputAccent",
 			border_hl = "MeisterInputAccent",
-			bar = "▌",
+			bar = "▎",
 			margin = 1,
 			placeholder = "message",
 		},
