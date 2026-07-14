@@ -32,6 +32,9 @@ local subcommands = {
 	clear = function()
 		require("meister.annotate").clear()
 	end,
+	load = function()
+		require("meister.annotate").load_buf()
+	end,
 }
 
 vim.api.nvim_create_user_command("Meister", function(a)
@@ -51,3 +54,16 @@ end, {
 	end,
 	desc = "Meister annotations",
 })
+
+vim.api.nvim_create_autocmd("BufReadPost", {
+	group = vim.api.nvim_create_augroup("meister_persist", { clear = true }),
+	callback = function(a)
+		require("meister.annotate").load_buf(a.buf)
+	end,
+})
+
+for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+	if vim.api.nvim_buf_is_loaded(buf) then
+		require("meister.annotate").load_buf(buf)
+	end
+end
