@@ -1,83 +1,6 @@
 local M = {}
 
 local ns_placeholder = vim.api.nvim_create_namespace("meister_input_placeholder")
-local ns_gap = vim.api.nvim_create_namespace("meister_input_gap")
-
-local BOX_HEIGHT = 3
-local Z_RAIL = 60
-local Z_BOX = 61
-
-local function scratch_buf()
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.bo[buf].bufhidden = "wipe"
-	return buf
-end
-
----@return fun() dispose
-local function insert_gap(code_buf, row, height)
-	local vlines = {}
-	for _ = 1, height do
-		vlines[#vlines + 1] = { { "", "NonText" } }
-	end
-	local mark = vim.api.nvim_buf_set_extmark(code_buf, ns_gap, row - 1, 0, { virt_lines = vlines })
-	return function()
-		pcall(vim.api.nvim_buf_del_extmark, code_buf, ns_gap, mark)
-	end
-end
-
-local function open_rail(win, from_row, height, textoff, bar, accent)
-	local buf = scratch_buf()
-	local lines = {}
-	for _ = 1, height do
-		lines[#lines + 1] = bar
-	end
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-	local rail = vim.api.nvim_open_win(buf, false, {
-		relative = "win",
-		win = win,
-		bufpos = { from_row - 1, 0 },
-		row = 0,
-		col = -textoff,
-		width = 1,
-		height = height,
-		style = "minimal",
-		focusable = false,
-		zindex = Z_RAIL,
-	})
-	vim.wo[rail].winhighlight = "Normal:" .. accent
-	return rail
-end
-
-local function box_border(hl)
-	return {
-		{ "┌", hl },
-		{ "─", hl },
-		{ "┐", hl },
-		{ "│", hl },
-		{ "┘", hl },
-		{ "─", hl },
-		{ "└", hl },
-		{ "│", hl },
-	}
-end
-
-local function open_box(win, to_row, textoff, win_width, margin, border_hl)
-	local buf = scratch_buf()
-	local box = vim.api.nvim_open_win(buf, true, {
-		relative = "win",
-		win = win,
-		bufpos = { to_row - 1, 0 },
-		row = 1,
-		col = -textoff + 1 + margin,
-		width = math.max(win_width - margin - 3, 10),
-		height = 1,
-		style = "minimal",
-		zindex = Z_BOX,
-		border = box_border(border_hl),
-	})
-	vim.wo[box].signcolumn = "yes:1"
-	return box, buf
-end
 
 local function attach_placeholder(buf, text)
 	local function draw()
@@ -102,15 +25,26 @@ function M.open(opts, on_submit)
 	local bar = opts.bar or "▌"
 	local margin = opts.margin or 1
 
-	local info = vim.fn.getwininfo(opts.win)[1]
-	local code_buf = vim.api.nvim_win_get_buf(opts.win)
-	local rail_h = (opts.to_row - opts.from_row + 1) + BOX_HEIGHT
-
-	local dispose_gap = insert_gap(code_buf, opts.to_row, BOX_HEIGHT)
-	local rail = open_rail(opts.win, opts.from_row, rail_h, info.textoff, bar, accent)
-	local box, buf = open_box(opts.win, opts.to_row, info.textoff, info.width, margin, border_hl)
+	local widget = require("meister.render").open_input({
+		win = opts.win,
+		from_row = opts.from_row,
+		to_row = opts.to_row,
+		bar = bar,
+		accent_hl = accent,
+		border_hl = border_hl,
+		margin = margin,
+		enter = true,
+	})
+	local buf = widget.box_buf
 
 	attach_placeholder(buf, opts.placeholder or "message")
+
+	vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
+		buffer = buf,
+		callback = function()
+			widget.resize()
+		end,
+	})
 
 	local closed = false
 	local function close()
@@ -118,12 +52,7 @@ function M.open(opts, on_submit)
 			return
 		end
 		closed = true
-		dispose_gap()
-		for _, w in ipairs({ rail, box }) do
-			if vim.api.nvim_win_is_valid(w) then
-				vim.api.nvim_win_close(w, true)
-			end
-		end
+		widget.dispose()
 	end
 
 	local function submit()
