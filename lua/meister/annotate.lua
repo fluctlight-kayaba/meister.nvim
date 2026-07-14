@@ -17,14 +17,43 @@ local function visual_range()
 end
 
 local function place_note(bufnr, from, to, text)
-	local cfg = require("meister.config").options.annotate
-	local id = vim.api.nvim_buf_set_extmark(bufnr, ns, from - 1, 0, {
-		end_row = to - 1,
-		virt_text = { { cfg.virt_text_prefix .. text, cfg.highlight } },
-		virt_text_pos = cfg.virt_text_pos,
-	})
+	require("meister.card").place(bufnr, from, to, text)
+	local id = vim.api.nvim_buf_set_extmark(bufnr, ns, from - 1, 0, { end_row = to - 1 })
 	M.notes[bufnr] = M.notes[bufnr] or {}
 	M.notes[bufnr][id] = { text = text }
+end
+
+local function persist(bufnr)
+	local path = vim.api.nvim_buf_get_name(bufnr)
+	if path == "" then
+		return
+	end
+	local entries = {}
+	for id, note in pairs(M.notes[bufnr] or {}) do
+		local pos = vim.api.nvim_buf_get_extmark_by_id(bufnr, ns, id, { details = true })
+		if pos[1] then
+			local from = pos[1] + 1
+			local to = ((pos[3] and pos[3].end_row) or pos[1]) + 1
+			entries[#entries + 1] = { from = from, to = to, text = note.text }
+		end
+	end
+	require("meister.store").save(path, entries)
+end
+
+---@param bufnr? integer
+function M.load_buf(bufnr)
+	bufnr = bufnr or vim.api.nvim_get_current_buf()
+	local path = vim.api.nvim_buf_get_name(bufnr)
+	if path == "" then
+		return
+	end
+	local saved = require("meister.store").load(path)
+	require("meister.card").close(bufnr)
+	vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+	M.notes[bufnr] = nil
+	for _, e in ipairs(saved) do
+		place_note(bufnr, e.from, e.to, e.text)
+	end
 end
 
 ---@param range? { [1]: integer, [2]: integer }
@@ -55,6 +84,7 @@ function M.add(range)
 			placeholder = input.placeholder,
 		}, function(text)
 			place_note(bufnr, from, to, text)
+			persist(bufnr)
 		end)
 	end)
 end
@@ -98,6 +128,11 @@ function M.clear()
 	for bufnr in pairs(M.notes) do
 		if vim.api.nvim_buf_is_valid(bufnr) then
 			vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+			require("meister.card").close(bufnr)
+			local path = vim.api.nvim_buf_get_name(bufnr)
+			if path ~= "" then
+				require("meister.store").save(path, {})
+			end
 		end
 	end
 	M.notes = {}
