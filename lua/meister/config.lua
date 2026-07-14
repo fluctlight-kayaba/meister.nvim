@@ -7,11 +7,13 @@ local M = {}
 ---@field margin integer
 ---@field placeholder string
 
+---@class meister.CardConfig
+---@field border_hl string
+---@field text_hl string
+
 ---@class meister.AnnotateConfig
----@field virt_text_prefix string
----@field highlight string
----@field virt_text_pos string
 ---@field input meister.InputConfig
+---@field card meister.CardConfig
 
 ---@class meister.SendConfig
 ---@field header string
@@ -27,15 +29,16 @@ local M = {}
 local defaults = {
 	provider = "opencode",
 	annotate = {
-		virt_text_prefix = "  ",
-		highlight = "Comment",
-		virt_text_pos = "eol",
 		input = {
 			accent_hl = "MeisterInputAccent",
 			border_hl = "MeisterInputAccent",
 			bar = "▎",
 			margin = 1,
 			placeholder = "message",
+		},
+		card = {
+			border_hl = "MeisterCardBorder",
+			text_hl = "MeisterCardText",
 		},
 	},
 	send = {
