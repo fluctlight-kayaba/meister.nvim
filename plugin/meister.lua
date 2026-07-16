@@ -15,8 +15,12 @@ vim.keymap.set("n", "<Plug>(meister-annotate)", function()
 end, { desc = "Meister: annotate current line" })
 
 vim.keymap.set("n", "<Plug>(meister-send)", function()
-	require("meister.annotate").send()
-end, { desc = "Meister: send annotations" })
+	require("meister.annotate").send_current()
+end, { desc = "Meister: send current buffer annotations" })
+
+vim.keymap.set("n", "<Plug>(meister-send-all)", function()
+	require("meister.annotate").send_all()
+end, { desc = "Meister: send all annotations" })
 
 vim.keymap.set("n", "<Plug>(meister-clear)", function()
 	require("meister.annotate").clear()
@@ -26,8 +30,12 @@ local subcommands = {
 	annotate = function(a)
 		require("meister.annotate").add(a.range > 0 and { a.line1, a.line2 } or nil)
 	end,
-	send = function()
-		require("meister.annotate").send()
+	send = function(a)
+		if a.fargs[2] == "all" then
+			require("meister.annotate").send_all()
+	 else
+			require("meister.annotate").send_current()
+		end
 	end,
 	clear = function()
 		require("meister.annotate").clear()
@@ -48,7 +56,7 @@ vim.api.nvim_create_user_command("Meister", function(a)
 	end
 	fn(a)
 end, {
-	nargs = 1,
+	nargs = "+",
 	range = true,
 	complete = function(lead)
 		return vim.tbl_filter(function(k)

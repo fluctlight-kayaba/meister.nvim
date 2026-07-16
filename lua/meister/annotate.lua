@@ -89,14 +89,16 @@ function M.add(range)
 	end)
 end
 
+---@param bufnr? integer if given, only collect from this buffer
 ---@return meister.Annotation[]
-local function collect()
+local function collect_loaded(bufnr)
 	local annotations = {}
-	for bufnr, marks in pairs(M.notes) do
-		if vim.api.nvim_buf_is_valid(bufnr) then
-			local file = vim.api.nvim_buf_get_name(bufnr)
-			for id, note in pairs(marks) do
-				local pos = vim.api.nvim_buf_get_extmark_by_id(bufnr, ns, id, { details = true })
+	local buffers = bufnr and { bufnr } or vim.tbl_keys(M.notes)
+	for _, b in ipairs(buffers) do
+		if M.notes[b] and vim.api.nvim_buf_is_valid(b) then
+			local file = vim.api.nvim_buf_get_name(b)
+			for id, note in pairs(M.notes[b]) do
+				local pos = vim.api.nvim_buf_get_extmark_by_id(b, ns, id, { details = true })
 				local row = pos and pos[1]
 				if row and row >= 0 then
 					local from = row + 1
@@ -109,8 +111,7 @@ local function collect()
 	return annotations
 end
 
-function M.send()
-	local annotations = collect()
+local function do_send(annotations)
 	if #annotations == 0 then
 		util.notify("no annotations to send", vim.log.levels.WARN)
 		return
@@ -127,6 +128,22 @@ function M.send()
 			end)
 		end
 	end)
+end
+
+function M.send_current()
+	do_send(collect_loaded(vim.api.nvim_get_current_buf()))
+end
+
+function M.send_all()
+	local bufnr = vim.api.nvim_get_current_buf()
+	local path = vim.api.nvim_buf_get_name(bufnr)
+	if path == "" then
+		path = vim.fn.getcwd() .. "/."
+	end
+	if vim.api.nvim_buf_get_name(bufnr) ~= "" then
+		persist(bufnr)
+	end
+	do_send(require("meister.store").load_all(path))
 end
 
 function M.clear()

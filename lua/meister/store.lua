@@ -107,4 +107,25 @@ function M.save(path, entries)
 	write_all(ctx, data)
 end
 
+---@param path string any path within the repo to resolve git dir
+---@return meister.Annotation[]
+function M.load_all(path)
+	if not path or path == "" then
+		return {}
+	end
+	local ctx = resolve(path)
+	if not ctx then
+		return {}
+	end
+	local data = read_all(ctx)
+	local annotations = {}
+	for relpath, entries in pairs(data) do
+		local abs = ctx.root .. "/" .. relpath
+		for _, e in ipairs(entries) do
+			annotations[#annotations + 1] = { file = abs, from = e.from, to = e.to, text = e.text }
+		end
+	end
+	return annotations
+end
+
 return M
