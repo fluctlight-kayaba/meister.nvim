@@ -10,6 +10,8 @@ local M = {}
 
 ---@class meister.Provider
 ---@field send fun(annotations: meister.Annotation[], cb?: fun(ok: boolean))
+---@field select_server? fun()
+---@field select_session? fun(all: boolean)
 
 ---@type table<string, meister.Provider>
 local registry = {}

@@ -66,8 +66,8 @@ local function probe(port, cb)
 			cb(nil)
 			return
 		end
-		client.get(url, "/path", function(path_data, err)
-			if err then
+		client.get(url, "/path", function(path_data, path_err)
+			if path_err then
 				cb(nil)
 				return
 			end
@@ -84,25 +84,18 @@ local function probe(port, cb)
 end
 
 ---@param cb fun(servers: meister.opencode.Server[])
-function M.find(cb)
+local function probe_all(cb)
 	local processes = M.scan_processes()
 	if #processes == 0 then
 		cb({})
 		return
 	end
-
-	local nvim_cwd = vim.fn.getcwd()
 	local remaining = #processes
 	local servers = {}
 	for _, proc in ipairs(processes) do
 		probe(proc.port, function(server)
 			if server then
-				if
-					server.cwd:find(nvim_cwd, 0, true) == 1
-					or nvim_cwd:find(server.cwd, 0, true) == 1
-				then
-					table.insert(servers, server)
-				end
+				table.insert(servers, server)
 			end
 			remaining = remaining - 1
 			if remaining == 0 then
@@ -110,6 +103,25 @@ function M.find(cb)
 			end
 		end)
 	end
+end
+
+---@param cb fun(servers: meister.opencode.Server[])
+function M.find(cb)
+	local nvim_cwd = vim.fn.getcwd()
+	probe_all(function(servers)
+		local matched = {}
+		for _, s in ipairs(servers) do
+			if s.cwd:find(nvim_cwd, 0, true) == 1 or nvim_cwd:find(s.cwd, 0, true) == 1 then
+				matched[#matched + 1] = s
+			end
+		end
+		cb(matched)
+	end)
+end
+
+---@param cb fun(servers: meister.opencode.Server[])
+function M.find_all(cb)
+	probe_all(cb)
 end
 
 return M

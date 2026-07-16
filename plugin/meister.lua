@@ -30,6 +30,14 @@ vim.keymap.set("n", "<Plug>(meister-list)", function()
 	require("meister.annotate").list()
 end, { desc = "Meister: list annotations" })
 
+vim.keymap.set("n", "<Plug>(meister-pick-session)", function()
+	require("meister.annotate").select_session(false)
+end, { desc = "Meister: pick session (project)" })
+
+vim.keymap.set("n", "<Plug>(meister-pick-session-all)", function()
+	require("meister.annotate").select_session(true)
+end, { desc = "Meister: pick session (all)" })
+
 vim.keymap.set("n", "<Plug>(meister-clear)", function()
 	require("meister.annotate").clear()
 end, { desc = "Meister: clear annotations" })

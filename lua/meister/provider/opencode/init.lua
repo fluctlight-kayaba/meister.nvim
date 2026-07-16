@@ -15,9 +15,20 @@ local function format_annotations(annotations)
 	local lines = {}
 	for _, ann in ipairs(annotations) do
 		local rel = vim.fn.fnamemodify(ann.file, ":.")
-		local range = ann.from == ann.to
-			and ("L%d"):format(ann.from)
-			or ("L%d-L%d"):format(ann.from, ann.to)
+		local range
+		if ann.from_col then
+			range = ("L%d:C%d"):format(ann.from, ann.from_col)
+			if ann.to ~= ann.from then
+				range = range .. ("-L%d"):format(ann.to)
+			end
+			if ann.to_col and ann.to_col ~= ann.from_col then
+				range = range .. (":C%d"):format(ann.to_col)
+			end
+		elseif ann.from == ann.to then
+			range = ("L%d"):format(ann.from)
+		else
+			range = ("L%d-L%d"):format(ann.from, ann.to)
+		end
 		lines[#lines + 1] = ("%s:%s — %s"):format(rel, range, ann.text)
 	end
 	return table.concat(lines, "\n") .. "\n"
@@ -80,6 +91,98 @@ function M.select_server()
 		if server then
 			util.notify("connected to " .. display_name(server.url))
 		end
+	end)
+end
+
+---@param servers meister.opencode.Server[]
+---@param cb fun(items: { server: meister.opencode.Server, session: table }[])
+local function gather_sessions(servers, cb)
+	local items = {}
+	local remaining = #servers
+	if remaining == 0 then
+		cb(items)
+		return
+	end
+	for _, server in ipairs(servers) do
+		client.get(server.url, "/session", function(sessions, _)
+			if sessions then
+				for _, s in ipairs(sessions) do
+					if not s.parentID then
+						items[#items + 1] = { server = server, session = s }
+					end
+				end
+			end
+			remaining = remaining - 1
+			if remaining == 0 then
+				cb(items)
+			end
+		end)
+	end
+end
+
+---@param all boolean list sessions from every running server, not just the current project
+function M.select_session(all)
+	local finder = all and discovery.find_all or discovery.find
+	finder(function(servers)
+		if #servers == 0 then
+			vim.schedule(function()
+				util.notify("no OpenCode server found", vim.log.levels.WARN)
+			end)
+			return
+		end
+		gather_sessions(servers, function(items)
+			vim.schedule(function()
+				if all then
+					local newest = {}
+					for _, it in ipairs(items) do
+						local cur = newest[it.server.url]
+						if not cur or it.session.time.updated > cur.session.time.updated then
+							newest[it.server.url] = it
+						end
+					end
+					items = vim.tbl_values(newest)
+				end
+				if #items == 0 then
+					util.notify("no sessions found", vim.log.levels.WARN)
+					return
+				end
+				table.sort(items, function(a, b)
+					return a.session.time.updated > b.session.time.updated
+				end)
+				vim.ui.select(items, {
+					prompt = all and "OpenCode session (all projects):" or "OpenCode session:",
+					format_item = function(it)
+						local title = it.session.title or it.session.slug or it.session.id
+						if all then
+							return ("%s — %s"):format(
+								vim.fn.fnamemodify(it.session.directory or it.server.cwd, ":t"),
+								title
+							)
+						end
+						return title
+					end,
+				}, function(choice)
+					if not choice then
+						return
+					end
+					client.post(
+						choice.server.url,
+						"/tui/select-session",
+						{ sessionID = choice.session.id },
+						function(ok, err)
+							vim.schedule(function()
+								if ok then
+									active_server = choice.server
+									util.notify("session: " .. (choice.session.title or choice.session.id))
+								else
+									util.notify("select-session failed: " .. (err or "unknown"), vim.log.levels.ERROR)
+								end
+							end)
+						end
+					)
+				end)
+			end)
+		end)
 	end)
 end
 

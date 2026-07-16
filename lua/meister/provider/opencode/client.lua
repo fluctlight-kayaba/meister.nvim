@@ -4,7 +4,7 @@ local M = {}
 ---@param path string
 ---@param method "GET" | "POST"
 ---@param body? table
----@param cb fun(obj: vim.SystemCompleted)
+---@param cb fun(obj: { code: integer, signal: integer, stdout: string, stderr: string })
 function M.request(url, path, method, body, cb)
 	local args = {
 		"curl",
