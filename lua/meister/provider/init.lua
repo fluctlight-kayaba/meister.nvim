@@ -1,8 +1,13 @@
 local M = {}
 
+---@class meister.Annotation
+---@field file string absolute file path
+---@field from integer 1-based start line
+---@field to integer 1-based end line
+---@field text string annotation text
+
 ---@class meister.Provider
----@field send fun(text: string)
----@field format_ref fun(path: string, from: integer, to: integer): string?
+---@field send fun(annotations: meister.Annotation[], cb?: fun(ok: boolean))
 
 ---@type table<string, meister.Provider>
 local registry = {}
@@ -13,7 +18,7 @@ function M.register(name, impl)
 	registry[name] = impl
 end
 
----Resolve the active provider from config: a registry name, or a table impl.
+---@Resolve the active provider from config: a registry name, or a table impl.
 ---@return meister.Provider
 function M.get()
 	local p = require("meister.config").options.provider

@@ -35,6 +35,9 @@ local subcommands = {
 	load = function()
 		require("meister.annotate").load_buf()
 	end,
+	session = function()
+		require("meister.provider").get().select_server()
+	end,
 }
 
 vim.api.nvim_create_user_command("Meister", function(a)

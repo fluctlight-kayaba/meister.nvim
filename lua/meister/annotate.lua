@@ -89,39 +89,44 @@ function M.add(range)
 	end)
 end
 
----@param provider meister.Provider
----@return string[]
-local function collect(provider)
-	local parts = {}
+---@return meister.Annotation[]
+local function collect()
+	local annotations = {}
 	for bufnr, marks in pairs(M.notes) do
 		if vim.api.nvim_buf_is_valid(bufnr) then
 			local file = vim.api.nvim_buf_get_name(bufnr)
 			for id, note in pairs(marks) do
 				local pos = vim.api.nvim_buf_get_extmark_by_id(bufnr, ns, id, { details = true })
-				local from = pos[1] + 1
-				local to = ((pos[3] and pos[3].end_row) or pos[1]) + 1
-				parts[#parts + 1] = ("%s: %s"):format(provider.format_ref(file, from, to) or file, note.text)
+				local row = pos and pos[1]
+				if row and row >= 0 then
+					local from = row + 1
+					local to = ((pos[3] and pos[3].end_row) or row) + 1
+					annotations[#annotations + 1] = { file = file, from = from, to = to, text = note.text }
+				end
 			end
 		end
 	end
-	return parts
+	return annotations
 end
 
 function M.send()
-	local provider = require("meister.provider").get()
-	local parts = collect(provider)
-	if #parts == 0 then
+	local annotations = collect()
+	if #annotations == 0 then
 		util.notify("no annotations to send", vim.log.levels.WARN)
 		return
 	end
 	local cfg = require("meister.config").options.send
-	local prompt = (type(cfg.template) == "function" and cfg.template(parts))
-		or (cfg.header .. "\n" .. table.concat(parts, "\n"))
-	provider.send(prompt)
-	if cfg.clear_after_send then
-		M.clear()
-	end
-	util.notify(("sent %d annotation(s)"):format(#parts))
+	local provider = require("meister.provider").get()
+	provider.send(annotations, function(ok)
+		if ok then
+			vim.schedule(function()
+				if cfg.clear_after_send then
+					M.clear()
+				end
+				util.notify(("sent %d annotation(s)"):format(#annotations))
+			end)
+		end
+	end)
 end
 
 function M.clear()
