@@ -160,4 +160,111 @@ function M.clear()
 	M.notes = {}
 end
 
+local function reload_if_open(path)
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.api.nvim_buf_get_name(buf) == path then
+			M.load_buf(buf)
+			return
+		end
+	end
+end
+
+function M.list()
+	local bufnr = vim.api.nvim_get_current_buf()
+	local path = vim.api.nvim_buf_get_name(bufnr)
+	if path == "" then
+		path = vim.fn.getcwd() .. "/."
+	end
+	if vim.api.nvim_buf_get_name(bufnr) ~= "" then
+		persist(bufnr)
+	end
+	local store = require("meister.store")
+	local all = store.load_all(path)
+	if #all == 0 then
+		util.notify("no annotations", vim.log.levels.WARN)
+		return
+	end
+	table.sort(all, function(a, b)
+		if a.file ~= b.file then
+			return a.file < b.file
+		end
+		return a.from < b.from
+	end)
+
+	local entries = {}
+	for _, ann in ipairs(all) do
+		local rel = vim.fn.fnamemodify(ann.file, ":.")
+		local display = ("%s:L%d — %s"):format(rel, ann.from, ann.text)
+		entries[#entries + 1] = ("%s:%d:%s"):format(ann.file, ann.from, display)
+	end
+
+	local function parse_entry(selected)
+		local file, line = selected[1]:match("^(.+):(%d+):")
+		return file, tonumber(line)
+	end
+
+	local fzf_ok, fzf = pcall(require, "fzf-lua")
+	if not fzf_ok then
+		vim.ui.select(entries, {
+			prompt = "Annotations:",
+			format_item = function(e)
+				return e:match(":%d+:(.*)$")
+			end,
+		}, function(choice)
+			if not choice then
+				return
+			end
+			local file, line = parse_entry({ choice })
+			vim.cmd("edit " .. vim.fn.fnameescape(file))
+			vim.api.nvim_win_set_cursor(0, { line, 0 })
+			vim.cmd("normal! zz")
+		end)
+		return
+	end
+
+	fzf.fzf_exec(entries, {
+		prompt = " Annotations> ",
+		previewer = "builtin",
+		winopts = {
+			title = " Annotations ",
+			title_pos = "center",
+		},
+		fzf_opts = {
+			["--delimiter"] = ":",
+			["--with-nth"] = "3..",
+			["--preview-window"] = "right:60%",
+		},
+		actions = {
+			["default"] = function(selected)
+				local file, line = parse_entry(selected)
+				vim.cmd("edit " .. vim.fn.fnameescape(file))
+				vim.api.nvim_win_set_cursor(0, { line, 0 })
+				vim.cmd("normal! zz")
+			end,
+			["ctrl-e"] = function(selected)
+				local file, line = parse_entry(selected)
+				local ann_text = ""
+				for _, ann in ipairs(all) do
+					if ann.file == file and ann.from == line then
+						ann_text = ann.text
+						break
+					end
+				end
+				vim.ui.input({ prompt = "Edit annotation: ", default = ann_text }, function(new)
+					if new and new ~= "" then
+						store.update_entry(file, line, new)
+						reload_if_open(file)
+					end
+				end)
+			end,
+			["ctrl-d"] = function(selected)
+				local file, line = parse_entry(selected)
+				store.delete_entry(file, line)
+				reload_if_open(file)
+				util.notify("deleted")
+			end,
+		},
+	})
+end
+
 return M

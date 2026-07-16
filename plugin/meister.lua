@@ -14,13 +14,17 @@ vim.keymap.set("n", "<Plug>(meister-annotate)", function()
 	require("meister.annotate").add({ line, line })
 end, { desc = "Meister: annotate current line" })
 
-vim.keymap.set("n", "<Plug>(meister-send)", function()
+vim.keymap.set("n", "<Plug>(meister-send-file)", function()
 	require("meister.annotate").send_current()
-end, { desc = "Meister: send current buffer annotations" })
+end, { desc = "Meister: send current file annotations" })
 
 vim.keymap.set("n", "<Plug>(meister-send-all)", function()
 	require("meister.annotate").send_all()
 end, { desc = "Meister: send all annotations" })
+
+vim.keymap.set("n", "<Plug>(meister-list)", function()
+	require("meister.annotate").list()
+end, { desc = "Meister: list annotations" })
 
 vim.keymap.set("n", "<Plug>(meister-clear)", function()
 	require("meister.annotate").clear()

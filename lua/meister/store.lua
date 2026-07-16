@@ -128,4 +128,50 @@ function M.load_all(path)
 	return annotations
 end
 
+---@param path string
+---@param from_line integer
+function M.delete_entry(path, from_line)
+	local ctx = resolve(path)
+	if not ctx then
+		return
+	end
+	local data = read_all(ctx)
+	local key = relkey(ctx.root, path)
+	if not data[key] then
+		return
+	end
+	for i, e in ipairs(data[key]) do
+		if e.from == from_line then
+			table.remove(data[key], i)
+			break
+		end
+	end
+	if #data[key] == 0 then
+		data[key] = nil
+	end
+	write_all(ctx, data)
+end
+
+---@param path string
+---@param from_line integer
+---@param new_text string
+function M.update_entry(path, from_line, new_text)
+	local ctx = resolve(path)
+	if not ctx then
+		return
+	end
+	local data = read_all(ctx)
+	local key = relkey(ctx.root, path)
+	if not data[key] then
+		return
+	end
+	for _, e in ipairs(data[key]) do
+		if e.from == from_line then
+			e.text = new_text
+			break
+		end
+	end
+	write_all(ctx, data)
+end
+
 return M
