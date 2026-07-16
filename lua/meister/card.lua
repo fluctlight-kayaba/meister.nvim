@@ -44,4 +44,11 @@ function M.close(bufnr)
 	vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
 end
 
+---@param bufnr integer
+---@param from integer
+---@param to integer
+function M.hide(bufnr, from, to)
+	vim.api.nvim_buf_clear_namespace(bufnr, ns, from - 1, to)
+end
+
 return M
