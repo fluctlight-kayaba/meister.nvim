@@ -5,6 +5,8 @@ local M = {}
 ---@field from integer 1-based start line
 ---@field to integer 1-based end line
 ---@field text string annotation text
+---@field from_col? integer
+---@field to_col? integer
 
 ---@class meister.Provider
 ---@field send fun(annotations: meister.Annotation[], cb?: fun(ok: boolean))

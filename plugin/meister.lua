@@ -22,6 +22,10 @@ vim.keymap.set("n", "<Plug>(meister-send-all)", function()
 	require("meister.annotate").send_all()
 end, { desc = "Meister: send all annotations" })
 
+vim.keymap.set("n", "<Plug>(meister-edit)", function()
+	require("meister.annotate").edit_at_cursor()
+end, { desc = "Meister: edit annotation at cursor" })
+
 vim.keymap.set("n", "<Plug>(meister-list)", function()
 	require("meister.annotate").list()
 end, { desc = "Meister: list annotations" })

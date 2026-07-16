@@ -74,8 +74,15 @@ local function write_all(ctx, data)
 	return true
 end
 
+---@class meister.StoredNote
+---@field from integer
+---@field to integer
+---@field text string
+---@field from_col? integer
+---@field to_col? integer
+
 ---@param path string
----@return { from: integer, to: integer, text: string }[]
+---@return meister.StoredNote[]
 function M.load(path)
 	if not path or path == "" then
 		return {}
@@ -88,7 +95,7 @@ function M.load(path)
 end
 
 ---@param path string
----@param entries { from: integer, to: integer, text: string }[]
+---@param entries meister.StoredNote[]
 function M.save(path, entries)
 	if not path or path == "" then
 		return
@@ -122,56 +129,15 @@ function M.load_all(path)
 	for relpath, entries in pairs(data) do
 		local abs = ctx.root .. "/" .. relpath
 		for _, e in ipairs(entries) do
-			annotations[#annotations + 1] = { file = abs, from = e.from, to = e.to, text = e.text }
+			local ann = { file = abs, from = e.from, to = e.to, text = e.text }
+			if e.from_col then
+				ann.from_col = e.from_col
+				ann.to_col = e.to_col
+			end
+			annotations[#annotations + 1] = ann
 		end
 	end
 	return annotations
-end
-
----@param path string
----@param from_line integer
-function M.delete_entry(path, from_line)
-	local ctx = resolve(path)
-	if not ctx then
-		return
-	end
-	local data = read_all(ctx)
-	local key = relkey(ctx.root, path)
-	if not data[key] then
-		return
-	end
-	for i, e in ipairs(data[key]) do
-		if e.from == from_line then
-			table.remove(data[key], i)
-			break
-		end
-	end
-	if #data[key] == 0 then
-		data[key] = nil
-	end
-	write_all(ctx, data)
-end
-
----@param path string
----@param from_line integer
----@param new_text string
-function M.update_entry(path, from_line, new_text)
-	local ctx = resolve(path)
-	if not ctx then
-		return
-	end
-	local data = read_all(ctx)
-	local key = relkey(ctx.root, path)
-	if not data[key] then
-		return
-	end
-	for _, e in ipairs(data[key]) do
-		if e.from == from_line then
-			e.text = new_text
-			break
-		end
-	end
-	write_all(ctx, data)
 end
 
 return M
